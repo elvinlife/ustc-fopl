@@ -84,4 +84,41 @@
   print(fib[3])
   ```
 
-  ​
+​
+
+  # Question Two:
+
+  * 问题
+
+    因为Lua的字符串是不可变的，导致每次在连接的时候
+
+    ```
+    str = str .. k .. v
+    ```
+
+    后一个`str`变量在完成连接函数后，被垃圾处理器回收，这样会使性能下降，回收字符串耗时$O(n)$
+
+    则整个循环的时间复杂度为$O(n^2)$,n为最后字符串长度
+
+
+  * 解决方法
+
+    用一个栈来保存所有的子字符串，再把他们连接在一起，每次删除子字符串
+
+    ```
+    s = {}
+    for k, v in pairs(t) do
+    	tinsert(s, k)
+    	tinsert(s, v)
+    end
+    for i=#s, 1, -1 do
+    	s[i] = s[i]...tremove(s)
+    end
+    str = s[1]
+    ```
+
+    为$O(n)$
+
+# Question Three:
+
+可以在master里存储一个队列，里面存放master发送的`method`的编号+worker算出的结果，master每过一段时间polling该队列，读出计算结果，这样就可以实现非阻塞的调用。
