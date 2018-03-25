@@ -21,6 +21,11 @@ local Monster = class.class(
       end,
 
       Think = function(self)
+        local hero = self.game:Hero()
+        if self:CanSee(hero) then
+          local path = self:PathTo(hero)
+          self.game:TryMove(self, path[#path-1]-self:Pos())
+        end
         -- Your code here.
       end
     }
