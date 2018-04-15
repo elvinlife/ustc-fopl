@@ -25,17 +25,110 @@ let rec trystep (t : Term.t) : outcome =
 
   | Term.TUnpack (_, x, t1, t2) -> Step (Term.substitute x t1 t2)
 
-  | Term.App (fn, arg) -> raise Unimplemented
+  | Term.App (fn, arg) -> (
+      match trystep fn with
+      | Val -> (
+          match trystep arg with
+          | Val -> (
+            match fn with
+              | Term.Lam(x, t, term)->(
+                Step (Term.substitute x arg term)
+                )
+              | _ -> raise (RuntimeError "Unreachable")
+            )
+          | Err e -> Err e
+        )
+      | Step fn' -> Step(Term.App(fn', arg))
+      | Err e -> Err e
+    ) 
 
-  | Term.Binop (b, t1, t2) -> raise Unimplemented
+  | Term.Binop (b, t1, t2) -> (
+    match trystep t1 with
+      | Val -> (
+          match trystep t2 with 
+          | Val ->(
+              match (t1, t2) with
+              | (Term.Int i1, Term.Int i2)->(
+                match b with
+                  | Ast.Add -> Step(Term.Int (i1+i2))
+                  | Ast.Sub -> Step(Term.Int (i1-i2))
+                  | Ast.Mul -> Step(Term.Int (i1*i2))
+                  | Ast.Div -> (
+                    if i2 = 0 then Err "divide by zero"
+                    else Step(Term.Int(i1/i2))
+                    )
+                  | _ -> raise (RuntimeError "Unreachable")
+                )
+            )
+          | Step t2' -> Step(Term.Binop(b, t1, t2'))
+          | Err e -> Err e
+        )
+      | Step t1' -> Step(Term.Binop(b, t1', t2))
+      | Err e -> Err e
+    ) 
 
-  | Term.Tuple (t1, t2) -> raise Unimplemented
+  | Term.Tuple (t1, t2) -> (
+    match trystep t1 with
+      | Step t1' -> (
+        match trystep t2 with
+          | Step t2' -> Step(Term.Tuple(t1', t2'))
+          | Val -> Step(Term.Tuple(t1', t2))
+          | Err e -> Err e
+        )
+      | Val -> (
+        match trystep t2 with
+          | Step t2' -> Step(Term.Tuple(t1, t2'))
+          | Val -> Val
+          | Err e -> Err e
+        ) 
+      | Err e -> Err e
+    )
 
-  | Term.Project (t, dir) -> raise Unimplemented
+  | Term.Project (t, dir) ->(
+      match trystep t with
+      | Step t' -> (
+        match t' with
+          | Term.Tuple(t1, t2) ->(
+              match dir with
+              | Ast.Left -> Step t1
+              | Ast.Right -> Step t2
+              | _ -> raise (RuntimeError "Unreachable")
+            )
+        )
+      | Val -> (
+        match t with
+          | Term.Tuple(t1, t2) ->(
+            match dir with
+              | Ast.Left -> Step t1
+              | Ast.Right -> Step t2
+              | _ ->  raise(RuntimeError "Unreachable")
+            )
+        )
+      | Err e -> Err e 
+    )
 
-  | Term.Inject (t, dir, tau) -> raise Unimplemented
+  | Term.Inject (t, dir, tau) ->(
+      match trystep t with
+      | Val -> Val
+      | Step t' -> Step (Term.Inject (t', dir, tau))
+      | Err e -> Err e
+    ) 
 
-  | Term.Case (t, (x1, t1), (x2, t2)) -> raise Unimplemented
+  | Term.Case (t, (x1, t1), (x2, t2)) ->(
+      match trystep t with
+      | Step t' -> Step(Term.Case (t', (x1, t1), (x2, t2)))
+      | Val -> (
+          match t with
+          | Term.Inject (t', dir, tau) -> (
+              match dir with
+              | Ast.Left -> Step(Term.substitute x1 t' t1)
+              | Ast.Right -> Step(Term.substitute x2 t' t2)
+              | _ -> raise(RuntimeError "Unreachable")
+            )
+          | _ -> raise (RuntimeError "Unreachable")
+        )
+      | Err e -> Err e
+    ) 
 
 let rec eval e =
   match trystep e with

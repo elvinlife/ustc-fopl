@@ -27,7 +27,7 @@ let run filename =
 
 let main () =
   let open Command.Let_syntax in
-  Command.basic'
+  Command.basic
     ~summary:"Lam2 interpreter"
     [%map_open
       let filename = anon ("filename" %: string) in
