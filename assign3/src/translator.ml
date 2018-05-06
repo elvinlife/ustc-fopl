@@ -53,16 +53,16 @@ let rec translate_term (t : Lang.Term.t) : IR.Term.t =
       IR.Term.Lam(x, translate_type t, body'), arg'
     )
     | Lang.Pattern.Alias (pt, x, t) ->
-      let t' = translate_term Lang.Term.Let(pt, arg, body) in
+      let t' = Lang.Term.Let(pt, arg, body) in
       IR.Term.App(
-        IR.Term.Lam(x, translate_type t, t'), arg'
+          IR.Term.Lam(x, translate_type t, translate_term t'), arg'
       )
     | Lang.Pattern.Tuple (p1, p2) ->
       translate_term 
         (Lang.Term.Let(p1, Lang.Term.Project(arg, Left),
                     Lang.Term.Let(p2, Lang.Term.Project(arg, Right),body)))
-    | Lang.Pattern.TUnpack (X, x) ->
-      IR.Term.TUnpack(X, x, arg', body')
+    | Lang.Pattern.TUnpack (xt, x) ->
+      IR.Term.TUnpack(xt, x, arg', body')
 
 let translate t = translate_term t
 

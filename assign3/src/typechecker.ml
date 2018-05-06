@@ -62,7 +62,9 @@ let rec typecheck_term (tenv : String.Set.t) (env : Type.t String.Map.t) (t : Te
   )
 
   | Term.Tuple (t1, t2) -> (
-    Type.Product (typecheck_term t1, typecheck_term t2)
+    Type.Product (
+      typecheck_term tenv env t1, 
+      typecheck_term tenv env t2)
   ) 
 
   | Term.Project (t, dir) -> (
@@ -78,7 +80,7 @@ let rec typecheck_term (tenv : String.Set.t) (env : Type.t String.Map.t) (t : Te
 
   | Term.Inject (arg, dir, sum_tau) -> (
     let type_arg = typecheck_term tenv env arg in
-    let type_sum = typecheck_term tenv env sum_tau in
+    let type_sum = typecheck_type tenv sum_tau in
     match type_sum with
     | Type.Sum(type_a, type_b) -> (
       match dir with
@@ -94,7 +96,7 @@ let rec typecheck_term (tenv : String.Set.t) (env : Type.t String.Map.t) (t : Te
   ) 
 
   | Term.Case (switch, (x1, t1), (x2, t2)) -> (
-    match typecheck_term switch with
+    match typecheck_term tenv env switch with
     | Type.Sum(type_a, type_b) -> (
       let env1 = String.Map.add env ~key:x1 ~data:type_a in
       let env2 = String.Map.add env ~key:x2 ~data:type_b in
@@ -113,8 +115,8 @@ let rec typecheck_term (tenv : String.Set.t) (env : Type.t String.Map.t) (t : Te
   ) 
 
   | Term.TApp (t, arg_tau) -> (
-    match t with
-    | Type.ForALL(x, body) -> (
+    match typecheck_term tenv env t with
+    | Type.ForAll(x, body) -> (
         let tau = typecheck_type tenv arg_tau in 
         Type.substitute x tau body
       )

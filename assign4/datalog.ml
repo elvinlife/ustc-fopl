@@ -141,16 +141,48 @@ module DatabaseImpl : Database = struct
 
   let saturate (rules : Rule.t list) (facts : Relation.Set.t) : Relation.Set.t =
     (* Your code here. *)
-    raise Unimplemented
-
+    let rec saturate_once rules_ facts_ origin_facts = (
+      match rules_ with
+      | [] -> (
+          if (Relation.Set.equal facts_ origin_facts) then facts_
+          else saturate_once rules facts_ facts_
+        ) 
+      | rule::remain_rules -> (
+          let app_facts = List.map (rule.body) ~f:(fun x -> applicable_facts facts_ x) in
+          let candidates = cross_product app_facts in
+          let rec sift relations patterns env = ( 
+            match (relations, patterns) with
+            | ([], []) -> env 
+            | (var::t1, p::t2) -> (sift t1 t2 (unify env var p))) in
+          let rec generate cand_list = (
+            match cand_list with
+            | [] -> []
+            | hd::tl -> (
+                try
+                  let env = (sift hd rule.body empty_env) in
+                  (substitute rule.head env)::(generate tl) 
+                with
+                CannotUnify -> (generate tl)
+              )
+          ) in
+          let new_facts = Relation.Set.union (Relation.Set.of_list (generate candidates)) facts_ in
+          saturate_once remain_rules new_facts origin_facts
+        )
+  ) in
+    saturate_once rules facts facts
 
   let build ((rules, facts) : Program.t) : t =
     Relation.Set.to_list (saturate rules (Relation.Set.of_list facts))
 
-  let  query (facts : t) (q : Relation.t) : Relation.t list =
-    (* Your code here. *)
-    raise Unimplemented
-
+  let query (facts : t) (q : Relation.t) : Relation.t list =
+    let rec query_iter facts_list to_query = ( 
+      match facts_list with
+      | [] -> []
+      | hd::tl -> try
+          let env = unify empty_env to_query hd in hd::(query_iter tl to_query)
+        with
+        CannotUnify -> query_iter tl to_query 
+    ) in query_iter facts q
 end
 
 let run_saturation filename =
@@ -181,19 +213,19 @@ let print_query query_filename =
 let main () =
   let open Command.Let_syntax in
   Command.group ~summary:"Datalog Interpreter"
-  ["test-saturation", Command.basic' ~summary:"Test saturation only."
+  ["test-saturation", Command.basic ~summary:"Test saturation only."
       [%map_open
         let filename = anon ("program_filename" %: string) in
         fun () -> run_saturation filename];
-  "print-program", Command.basic' ~summary:"Print an s-expression program in readable form."
+  "print-program", Command.basic ~summary:"Print an s-expression program in readable form."
       [%map_open
         let filename = anon ("program_filename" %: string) in
         fun () -> print_program filename];
-  "print-query", Command.basic' ~summary:"Print an s-expression query in readable form."
+  "print-query", Command.basic ~summary:"Print an s-expression query in readable form."
       [%map_open
         let filename = anon ("query_filename" %: string) in
         fun () -> print_query filename];
-  "test", Command.basic' ~summary:"Test saturation and query implementations."
+  "test", Command.basic ~summary:"Test saturation and query implementations."
       [%map_open
         let prog_filename = anon ("program_filename" %: string)
         and query_filename = anon ("query_filename" %: string) in

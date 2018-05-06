@@ -29,13 +29,9 @@ let rec trystep (t : Term.t) : outcome =
       match trystep fn with
       | Val -> (
           match trystep arg with
-          | Val -> (
-            match fn with
-              | Term.Lam(x, t, term)->(
-                Step (Term.substitute x arg term)
-                )
-              | _ -> raise (RuntimeError "Unreachable")
-            )
+          | Val -> let Term.Lam(x, _, t1) = fn in
+            Step(Term.substitute x arg t1)
+          | Step arg' -> Step (Term.App (fn, arg'))
           | Err e -> Err e
         )
       | Step fn' -> Step(Term.App(fn', arg))
@@ -69,12 +65,7 @@ let rec trystep (t : Term.t) : outcome =
 
   | Term.Tuple (t1, t2) -> (
     match trystep t1 with
-      | Step t1' -> (
-        match trystep t2 with
-          | Step t2' -> Step(Term.Tuple(t1', t2'))
-          | Val -> Step(Term.Tuple(t1', t2))
-          | Err e -> Err e
-        )
+      | Step t1' -> Step(Term.Tuple(t1', t2))
       | Val -> (
         match trystep t2 with
           | Step t2' -> Step(Term.Tuple(t1, t2'))
@@ -86,15 +77,7 @@ let rec trystep (t : Term.t) : outcome =
 
   | Term.Project (t, dir) ->(
       match trystep t with
-      | Step t' -> (
-        match t' with
-          | Term.Tuple(t1, t2) ->(
-              match dir with
-              | Ast.Left -> Step t1
-              | Ast.Right -> Step t2
-              | _ -> raise (RuntimeError "Unreachable")
-            )
-        )
+      | Step t' -> Step(Term.Project(t', dir))
       | Val -> (
         match t with
           | Term.Tuple(t1, t2) ->(

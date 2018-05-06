@@ -7,7 +7,7 @@ FLAGS = -use-ocamlfind -use-menhir
 	$(BUILD) $(FLAGS) src/$@
 
 clean:
-	rm -rf *.byte *.top _build
+	rm -rf  *.top _build
 
 always:
 
